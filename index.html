@@ -460,70 +460,35 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
 }
 
 
-/* v9 Step 2: anchor points only, no crop/grid lines */
-.step2-tabs{grid-template-columns:repeat(3,1fr)}
-.crop-stage .anchor-overlay{
+/* v9 workflow: Step 2 only records XY, Step 3 composes full source image, Step 4 crops */
+.crop-stage .overlay .c{
+  position:relative;
+  overflow:hidden;
+}
+.crop-stage .overlay .xy-label{
   position:absolute;
-  inset:0;
+  left:3px;
+  top:3px;
+  padding:2px 4px;
+  border-radius:5px;
+  background:rgba(0,0,0,.58);
+  color:#fff;
+  font-size:9px;
+  line-height:1.2;
   pointer-events:none;
 }
-.anchor-point{
-  position:absolute;
-  width:28px;height:28px;
-  border-radius:50%;
-  transform:translate(-50%,-50%);
-  display:flex;align-items:center;justify-content:center;
-  background:#0b5d3b;color:white;
-  border:2px solid white;
-  box-shadow:0 2px 8px rgba(0,0,0,.25);
-  font-size:11px;font-weight:900;
+.crop-final-grid .pick{
+  aspect-ratio:370/320 !important;
 }
-.anchor-point::after{
-  content:"";
-  position:absolute;
-  width:5px;height:5px;border-radius:50%;
-  background:white;
+.crop-final-grid .pick canvas{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:370/320;
 }
-
-/* v9 Step 4 final crop preview + selection */
-.selection-legend{
-  display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 12px;
-  font-size:13px;color:var(--muted)
-}
-.selection-legend span{display:flex;align-items:center;gap:6px}
-.selection-legend i{
-  width:24px;height:24px;border-radius:50%;
-  display:inline-flex;align-items:center;justify-content:center;
-  font-style:normal;font-weight:900;font-size:11px
-}
-.legend-main{background:#0b5d3b;color:#fff}
-.legend-tab{background:#e9a900;color:#fff}
-.final-crop-grid{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
-}
-.final-crop-item{
-  border:2px solid #e5e9ec;border-radius:14px;padding:6px;background:#fff;
-}
-.final-crop-item canvas{
-  width:100%;height:auto;aspect-ratio:370/320;display:block;border-radius:9px;background:#eef2f4;
-}
-.final-crop-actions{
-  display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px
-}
-.final-crop-actions button{
-  min-height:34px;border:0;border-radius:9px;font-size:12px;font-weight:800;background:#f2f5f7;color:#59636d
-}
-.final-crop-actions button.main-on{background:#0b5d3b;color:#fff}
-.final-crop-actions button.tab-on{background:#e9a900;color:#fff}
-.crop-selection-summary{
-  position:sticky;bottom:70px;
-  margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;
-  background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
-  display:grid;grid-template-columns:1fr 1fr;gap:8px;z-index:4
-}
-.crop-selection-summary div{display:flex;justify-content:space-between;gap:6px;font-size:13px}
-@media(max-width:360px){
-  .final-crop-grid{grid-template-columns:1fr}
+@media(max-width:430px){
+  .crop-stage .overlay .xy-label{font-size:8px;padding:1px 3px}
+  .crop-final-grid{grid-template-columns:repeat(2,1fr)!important}
 }
 
 </style>
@@ -556,26 +521,27 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
 <section class="page step2-page">
   <div class="step2-head">
     <div>
-      <h1>設定定位點</h1>
-      <p>這一步不裁切，只確認每張貼圖的大約中心位置。數字圓點就是下一步的裁切基準。</p>
+      <h1>設定裁切位置</h1>
+      <p>這一步只預覽格線並記錄每格起始 XY，不會切圖。下一步才逐格調整原圖位置與大小。</p>
     </div>
   </div>
 
   <div class="step2-preview-zone">
     <div class="crop-stage">
       <div class="crop-preview" id="cropPreview">
-        <img id="cropImg" alt="定位預覽">
-        <div class="anchor-overlay" id="overlay"></div>
+        <img id="cropImg" alt="裁切預覽">
+        <div class="overlay" id="overlay"></div>
       </div>
     </div>
-    <div class="crop-summary" id="cropSummary">3 × 3 · 共 9 個定位點</div>
-    <div class="crop-move-hint">只要讓每個圓點大致落在每張貼圖中央即可，細節到 Step 3 再逐張調整。</div>
+    <div class="crop-summary" id="cropSummary">3 × 3 · 共 9 張</div>
+    <div class="crop-move-hint">每格會記錄起始 XY；這一步不產生裁切圖片</div>
   </div>
 
   <div class="step2-panel">
     <div class="step2-tabs">
       <button class="step2-tab on" data-panel="layoutPanel">排列</button>
-      <button class="step2-tab" data-panel="spacingPanel">分布</button>
+      <button class="step2-tab" data-panel="marginPanel">外框</button>
+      <button class="step2-tab" data-panel="gapPanel">間距</button>
       <button class="step2-tab" data-panel="positionPanel">位置</button>
     </div>
 
@@ -586,46 +552,55 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
         <button class="preset" data-r="2" data-c="4"><div class="gridicon"></div><span>4 × 2</span></button>
         <button class="preset" data-r="3" data-c="4"><div class="gridicon"></div><span>4 × 3</span></button>
       </div>
+
       <div class="custom compact-custom">
-        <label>橫向<select id="colsSel"></select></label>
+        <label>橫向
+          <select id="colsSel"></select>
+        </label>
         <div class="times">×</div>
-        <label>直向<select id="rowsSel"></select></label>
+        <label>直向
+          <select id="rowsSel"></select>
+        </label>
       </div>
     </div>
 
-    <div class="step2-panelbody" id="spacingPanel">
+    <div class="step2-panelbody" id="marginPanel">
       <div class="big-control">
-        <div class="big-control-top"><b>左右分布</b><strong id="spreadXOut">100%</strong></div>
-        <input id="spreadX" type="range" min="50" max="120" step="1" value="100">
-        <div class="control-hint">控制最左到最右定位點的距離。</div>
-      </div>
-      <div class="big-control position-control">
-        <div class="big-control-top"><b>上下分布</b><strong id="spreadYOut">100%</strong></div>
-        <input id="spreadY" type="range" min="50" max="120" step="1" value="100">
-        <div class="control-hint">控制最上到最下定位點的距離。</div>
+        <div class="big-control-top"><b>外框邊距</b><strong id="marginOut">0%</strong></div>
+        <input id="margin" type="range" min="0" max="15" step=".5" value="0">
+        <div class="control-hint">調整整張大圖四周要略過的留白。</div>
       </div>
     </div>
 
+    <div class="step2-panelbody" id="gapPanel">
+      <div class="big-control">
+        <div class="big-control-top"><b>格子間距</b><strong id="gapOut">0%</strong></div>
+        <input id="gap" type="range" min="0" max="10" step=".5" value="0">
+        <div class="control-hint">如果每格中間有留白，可在這裡扣掉。</div>
+      </div>
+    </div>
     <div class="step2-panelbody" id="positionPanel">
       <div class="big-control position-control">
-        <div class="big-control-top"><b>整體左右</b><strong id="posXOut">置中</strong></div>
-        <input id="posX" type="range" min="-40" max="40" step="1" value="0">
+        <div class="big-control-top"><b>左右位置</b><strong id="posXOut">置中</strong></div>
+        <input id="posX" type="range" min="-100" max="100" step="1" value="0">
         <div class="position-labels"><span>← 左</span><span>中間</span><span>右 →</span></div>
       </div>
       <div class="big-control position-control">
-        <div class="big-control-top"><b>整體上下</b><strong id="posYOut">置中</strong></div>
-        <input id="posY" type="range" min="-40" max="40" step="1" value="0">
+        <div class="big-control-top"><b>上下位置</b><strong id="posYOut">置中</strong></div>
+        <input id="posY" type="range" min="-100" max="100" step="1" value="0">
         <div class="position-labels"><span>↑ 上</span><span>中間</span><span>下 ↓</span></div>
       </div>
+      <div class="control-hint">先用「外框」縮小裁切範圍，再用這兩條 Bar 整體移動所有裁切格。</div>
     </div>
+
   </div>
 </section>
 
 <section class="page">
-  <h1>依定位點逐張微調</h1>
-  <p>每張會從 Step 2 的定位點開始。現在只調整構圖位置與大小；全部完成後，到 Step 4 再一次看實際裁切成品。</p>
+  <h1>逐格調整原圖</h1>
+  <p>每格都從 Step 2 記錄的 XY 開始，但 Canvas 畫的是完整原圖。先調整每格的構圖、位置與縮放，這一步仍不輸出裁切圖。</p>
   <div class="editor" id="editor"><canvas id="editCanvas" width="740" height="640"></canvas></div>
-  <div class="hintchips"><span class="chip">👆 單指拖曳</span><span class="chip">🤏 雙指縮放</span><span class="chip">370 × 320 輸出框</span></div>
+  <div class="hintchips"><span class="chip">👆 移動原圖</span><span class="chip">🤏 縮放原圖</span><span class="chip">370 × 320 裁切視窗</span></div>
   <label class="sync-adjust"><input type="checkbox" id="syncAdjust"> <span>一併調整全部圖片</span></label><div class="zoomrow"><span>縮放</span><input id="zoom" type="range" min=".5" max="3" step=".01" value="1"><output id="zoomOut">100%</output></div>
   <div class="tools">
     <button class="btn secondary small" id="resetOne">重設這張</button>
@@ -635,19 +610,14 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
 </section>
 
 <section class="page">
-  <h1>裁切預覽</h1>
-  <p>這裡才是最後的 370 × 320 裁切結果。確認每張成品，同時直接指定 Main 與 Tab。</p>
-
-  <div class="selection-legend">
-    <span><i class="legend-main">M</i> Main 主圖</span>
-    <span><i class="legend-tab">T</i> Tab 圖片</span>
-  </div>
-
-  <div class="final-crop-grid" id="finalCropGrid"></div>
-
-  <div class="crop-selection-summary">
-    <div><b>Main</b><span id="mainSummary">第 01 張</span></div>
-    <div><b>Tab</b><span id="tabSummary">第 01 張</span></div>
+  <h1>裁切預覽 ＋ Main / Tab</h1>
+  <p>現在才依 Step 3 的最終構圖產生 370 × 320 裁切預覽。確認後直接選 Main 與 Tab。</p>
+  <div class="card crop-preview-card"><h2>裁切結果</h2><div class="pickgrid crop-final-grid" id="mainPick"></div><div class="control-hint">點一下其中一張即可設為 Main；所有縮圖都是 Step 3 調整完成後才產生的裁切預覽。</div></div>
+  <div class="card">
+    <h2>Tab 圖片</h2>
+    <label class="radio"><input type="radio" name="tabmode" value="same" checked>使用 Main 同一張</label>
+    <label class="radio"><input type="radio" name="tabmode" value="other">另外選一張</label>
+    <div id="tabPick" class="pickgrid hidden"></div>
   </div>
 </section>
 
@@ -696,20 +666,19 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-
+let cropOffsetX=0,cropOffsetY=0,cropPosX=0,cropPosY=0,layoutFrames=[];
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const pages=$$('.page');
 const help=[
  ['按「選擇圖片」從相簿或檔案加入大圖。','選完後先確認預覽是否正確。','圖片只在本機瀏覽器中處理。'],
- ['Step 2 不裁切，只放置每一格的中心定位點。','先選排列，再用「分布」調整點與點距離，用「位置」整體移動。','只要圓點大致落在各張貼圖中央即可，不需要精準。'],
- ['每張會從 Step 2 的定位點開始，這一步再逐張調整大小與位置。','勾選「一併調整全部圖片」後，縮放會同步套用全部貼圖。','這一步調構圖，Step 4 才一次顯示全部實際裁切成品。'],
- ['這裡一次顯示 Step 3 微調後的全部 370:320 裁切成品。','每張下面都有 Main / Tab 按鈕，可以直接指定，不必再切換頁面。','確認裁切與 Main / Tab 都正確後再往下一步。'],
+ ['Step 2 只做版面預覽，不切圖；每格左上角會顯示起始 XY。','排列、外框、間距與位置 Bar 都只是在決定每格的起始座標。','按下一步時才把這些 XY 記錄給 Step 3 使用。'],
+ ['Step 3 每格都畫完整原圖，再依 Step 2 的 XY 把原圖放到 370:320 視窗下方；不是先切成小圖。','拖曳、縮放是在調整原圖相對於該格視窗的位置；勾「一併調整」可同步縮放。','所有格子調整完成後，Step 4 才真正產生裁切預覽。'],
+ ['Step 4 才把 Step 3 的最終構圖正式裁成 370:320 預覽。','在裁切預覽中直接點選 Main；Tab 預設使用 Main 同一張。','若 Tab 想換圖，再選「另外選一張」。'],
  ['確認貼圖數量以及 Main / Tab。','預覽內容就是最後輸出的大致結果。','有問題可按上一步回去調整。'],
  ['iPhone / iPad 會提示存到「照片」App；Android 會提示 Google 相簿、檔案或其他 App。','桌機以 ZIP 下載為主。','瀏覽器只能知道分享流程完成，無法讀取你實際選擇的儲存目的地。']
 ];
 
 let step=0,img=new Image(),imgURL='',cols=3,rows=3,currentSticker=0,mainIndex=0,tabIndex=0;
-let anchorSpreadX=100,anchorSpreadY=100,cropPosX=0,cropPosY=0;
 let transforms=[], outputBlobs=[], outputFiles=[];
 const ua=navigator.userAgent;
 const isiOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
@@ -739,14 +708,15 @@ $$('.step2-tab').forEach(btn=>btn.onclick=()=>{
 
 
 function showStep(n){
+  if(n===2){ snapshotLayoutFrames(); ensureTransforms(); }
   step=Math.max(0,Math.min(5,n));pages.forEach((p,i)=>p.classList.toggle('active',i===step));
-  $('#stepName').textContent=['1. 選圖片','2. 定位','3. 微調','4. 裁切預覽','5. 檢查','6. 完成'][step];
+  $('#stepName').textContent=['1. 選圖片','2. 切幾張','3. 調整','4. 封面','5. 檢查','6. 完成'][step];
   $('#stepCount').textContent=`Step ${step+1} / 6`;
   $('#progress').innerHTML=[0,1,2,3,4,5].map(i=>`<i class="${i<=step?'on':''}"></i>`).join('');
   $('#prev').style.visibility=step===0?'hidden':'visible'; $('#footer').style.display=step===5?'none':'flex';
   $('#next').textContent=step===4?'產生圖片':'下一步';
   if(step===2){ensureTransforms(); buildThumbs(); renderEditor();}
-  if(step===3) buildFinalCropPreview();
+  if(step===3) buildPicks();
   if(step===4){buildResultPreview(); $('#stickerCount').textContent=`${rows*cols} 張貼圖已完成`;}
   if(step===5) prepareOutputs();
   scrollTo({top:0,behavior:'smooth'});
@@ -766,7 +736,9 @@ $('#fileInput').onchange=e=>{
 function selectLayout(c,r){
   cols=c;rows=r;$('#colsSel').value=c;$('#rowsSel').value=r;
   $$('.preset').forEach(b=>b.classList.toggle('on',+b.dataset.c===c && +b.dataset.r===r));
-  transforms=[]; currentSticker=0; mainIndex=0; tabIndex=0;
+  transforms=[]; layoutFrames=[]; currentSticker=0; cropOffsetX=0; cropOffsetY=0; cropPosX=0; cropPosY=0;
+  if($('#posX')) $('#posX').value=0;
+  if($('#posY')) $('#posY').value=0;
   updateOverlay(); updateCropSummary();
 }
 $$('.preset').forEach(b=>b.onclick=()=>selectLayout(+b.dataset.c,+b.dataset.r));
@@ -775,73 +747,89 @@ $('#rowsSel').onchange=()=>selectLayout(+$('#colsSel').value,+$('#rowsSel').valu
 
 function updateOverlay(){
   const ov=$('#overlay');
+  ov.style.display='grid';
+  ov.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  ov.style.gridTemplateRows=`repeat(${rows},1fr)`;
+  const m=+$('#margin').value,g=+$('#gap').value;
+  const preview=$('#cropImg');
+  cropOffsetX=(preview.clientWidth*m/100)*(cropPosX/100);
+  cropOffsetY=(preview.clientHeight*m/100)*(cropPosY/100);
+  ov.style.inset=m+'%';
+  ov.style.gap=g+'%';
+  ov.style.transform=`translate(${cropOffsetX}px,${cropOffsetY}px)`;
   ov.innerHTML='';
-  const count=rows*cols;
-  for(let i=0;i<count;i++){
-    const a=anchorFor(i);
-    const d=document.createElement('div');
-    d.className='anchor-point';
-    d.style.left=(a.px*100)+'%';
-    d.style.top=(a.py*100)+'%';
-    d.textContent=String(i+1).padStart(2,'0');
-    ov.appendChild(d);
+  for(let i=0;i<rows*cols;i++){
+    const cell=document.createElement('div');
+    cell.className='c';
+    const r=sourceRect(i);
+    const label=document.createElement('span');
+    label.className='xy-label';
+    label.textContent=`${i+1} · ${Math.round(r.x)},${Math.round(r.y)}`;
+    cell.appendChild(label);
+    ov.appendChild(cell);
   }
-  if($('#spreadXOut')) $('#spreadXOut').textContent=anchorSpreadX+'%';
-  if($('#spreadYOut')) $('#spreadYOut').textContent=anchorSpreadY+'%';
+  $('#marginOut').textContent=m+'%';
+  $('#gapOut').textContent=g+'%';
   if($('#posXOut')) $('#posXOut').textContent=positionText(cropPosX,'x');
   if($('#posYOut')) $('#posYOut').textContent=positionText(cropPosY,'y');
+  layoutFrames=[];
 }
 function positionText(v,axis){
   v=+v;
-  if(Math.abs(v)<2)return '置中';
-  if(axis==='x')return (v<0?'左 ':'右 ')+Math.abs(v)+'%';
-  return (v<0?'上 ':'下 ')+Math.abs(v)+'%';
+  if(Math.abs(v)<3)return '置中';
+  const amount=Math.abs(v)+'%';
+  if(axis==='x')return (v<0?'左 ':'右 ')+amount;
+  return (v<0?'上 ':'下 ')+amount;
 }
 function updateCropSummary(){
   const el=$('#cropSummary');
-  if(el) el.textContent=`${cols} × ${rows} · 共 ${cols*rows} 個定位點`;
+  if(el) el.textContent=`${cols} × ${rows} · 共 ${cols*rows} 張`;
 }
-function anchorFor(index){
-  const col=index%cols,row=Math.floor(index/cols);
-  const spreadX=.78*(anchorSpreadX/100), spreadY=.78*(anchorSpreadY/100);
-  const centerX=.5+cropPosX/100, centerY=.5+cropPosY/100;
-  const nx=cols===1?0:(col/(cols-1)-.5);
-  const ny=rows===1?0:(row/(rows-1)-.5);
-  const px=Math.max(.03,Math.min(.97,centerX+nx*spreadX));
-  const py=Math.max(.03,Math.min(.97,centerY+ny*spreadY));
-  return {px,py,x:px*img.naturalWidth,y:py*img.naturalHeight};
-}
-$('#spreadX').oninput=e=>{anchorSpreadX=+e.target.value;transforms=[];updateOverlay()};
-$('#spreadY').oninput=e=>{anchorSpreadY=+e.target.value;transforms=[];updateOverlay()};
-$('#posX').oninput=e=>{cropPosX=+e.target.value;transforms=[];updateOverlay()};
-$('#posY').oninput=e=>{cropPosY=+e.target.value;transforms=[];updateOverlay()};
+$('#margin').oninput=()=>{transforms=[];layoutFrames=[];updateOverlay()};
+$('#gap').oninput=()=>{transforms=[];layoutFrames=[];updateOverlay()};
+$('#posX').oninput=e=>{cropPosX=+e.target.value;transforms=[];layoutFrames=[];updateOverlay()};
+$('#posY').oninput=e=>{cropPosY=+e.target.value;transforms=[];layoutFrames=[];updateOverlay()};
 
 function sourceRect(index){
-  const a=anchorFor(index);
-  // Initial working area is inferred from the distance between anchor points.
-  // Step 3 then refines the final 370:320 crop with zoom/pan.
-  const stepX=cols>1 ? img.naturalWidth*(.78*(anchorSpreadX/100))/(cols-1) : img.naturalWidth*.78;
-  const stepY=rows>1 ? img.naturalHeight*(.78*(anchorSpreadY/100))/(rows-1) : img.naturalHeight*.78;
-  let w=Math.max(40,stepX*.92), h=Math.max(40,stepY*.92);
-  // Expand to a LINE-like 370:320 working ratio without distorting source pixels.
-  const target=370/320;
-  if(w/h<target) w=h*target; else h=w/target;
-  w=Math.min(w,img.naturalWidth);
-  h=Math.min(h,img.naturalHeight);
-  let x=a.x-w/2, y=a.y-h/2;
-  x=Math.max(0,Math.min(img.naturalWidth-w,x));
-  y=Math.max(0,Math.min(img.naturalHeight-h,y));
-  return {x,y,w,h};
+  const m=+$('#margin').value/100, gp=+$('#gap').value/100;
+  const W=img.naturalWidth,H=img.naturalHeight;
+  const offsetX=W*m*(cropPosX/100), offsetY=H*m*(cropPosY/100);
+  const left=W*m+offsetX,top=H*m+offsetY,usableW=W*(1-2*m),usableH=H*(1-2*m);
+  const totalGapW=usableW*gp*(cols-1), totalGapH=usableH*gp*(rows-1);
+  const cw=(usableW-totalGapW)/cols,ch=(usableH-totalGapH)/rows;
+  const col=index%cols,row=Math.floor(index/cols);
+  return {x:left+col*(cw+usableW*gp),y:top+row*(ch+usableH*gp),w:cw,h:ch};
 }
+
+function snapshotLayoutFrames(){
+  layoutFrames=Array.from({length:rows*cols},(_,i)=>{
+    const r=sourceRect(i);
+    return {x:r.x,y:r.y,w:r.w,h:r.h};
+  });
+}
+function frameFor(index){
+  if(layoutFrames.length!==rows*cols) snapshotLayoutFrames();
+  return layoutFrames[index] || sourceRect(index);
+}
+
 function ensureTransforms(){
   const n=rows*cols;if(transforms.length!==n)transforms=Array.from({length:n},()=>({zoom:1,dx:0,dy:0}));
 }
 function drawSticker(ctx,index,w,h){
-  ensureTransforms();const r=sourceRect(index),t=transforms[index];
+  ensureTransforms();
+  const r=frameFor(index),t=transforms[index];
   ctx.clearRect(0,0,w,h);
-  const base=Math.max(w/r.w,h/r.h),scale=base*t.zoom;
-  const dw=r.w*scale,dh=r.h*scale;
-  ctx.drawImage(img,r.x,r.y,r.w,r.h,(w-dw)/2+t.dx*(w/370),(h-dh)/2+t.dy*(h/320),dw,dh);
+
+  // Important: draw the ENTIRE original image. The frame XY only determines
+  // which part starts inside the 370:320 viewport. Actual cropping happens
+  // only because the destination canvas clips outside its bounds.
+  const base=Math.max(w/r.w,h/r.h);
+  const scale=base*t.zoom;
+  const frameCX=r.x+r.w/2, frameCY=r.y+r.h/2;
+  const panX=t.dx*(w/370), panY=t.dy*(h/320);
+  const imageX=w/2-frameCX*scale+panX;
+  const imageY=h/2-frameCY*scale+panY;
+  ctx.drawImage(img,imageX,imageY,img.naturalWidth*scale,img.naturalHeight*scale);
 }
 function renderEditor(){
   if(!img.complete)return;const c=$('#editCanvas');drawSticker(c.getContext('2d'),currentSticker,c.width,c.height);
@@ -890,41 +878,28 @@ editor.addEventListener('pointermove',e=>{
 function pointerEnd(e){pointerMap.delete(e.pointerId);lastDist=0;if(pointerMap.size===0)buildThumbs()}
 editor.addEventListener('pointerup',pointerEnd);editor.addEventListener('pointercancel',pointerEnd);
 
-function buildFinalCropPreview(){
-  ensureTransforms();
-  const root=$('#finalCropGrid');
-  if(!root)return;
-  root.innerHTML='';
-  for(let i=0;i<rows*cols;i++){
-    const item=document.createElement('div');
-    item.className='final-crop-item';
-
-    const c=makeThumbCanvas(i,370);
-    item.appendChild(c);
-
-    const actions=document.createElement('div');
-    actions.className='final-crop-actions';
-
-    const m=document.createElement('button');
-    m.type='button';
-    m.textContent=(i===mainIndex?'✓ ':'')+'Main';
-    if(i===mainIndex)m.classList.add('main-on');
-    m.onclick=()=>{mainIndex=i;buildFinalCropPreview()};
-
-    const t=document.createElement('button');
-    t.type='button';
-    t.textContent=(i===tabIndex?'✓ ':'')+'Tab';
-    if(i===tabIndex)t.classList.add('tab-on');
-    t.onclick=()=>{tabIndex=i;buildFinalCropPreview()};
-
-    actions.append(m,t);
-    item.appendChild(actions);
-    root.appendChild(item);
-  }
-  $('#mainSummary').textContent='第 '+String(mainIndex+1).padStart(2,'0')+' 張';
-  $('#tabSummary').textContent='第 '+String(tabIndex+1).padStart(2,'0')+' 張';
+function buildPicks(){
+ snapshotLayoutFrames();
+ const roots=[['mainPick','main'],['tabPick','tab']];
+ roots.forEach(([id,type])=>{
+   const root=$('#'+id);root.innerHTML='';
+   for(let i=0;i<rows*cols;i++){
+     let b=document.createElement('button');
+     let sel=type==='main'?mainIndex:tabIndex;
+     b.className='pick '+(i===sel?'on':'');
+     b.appendChild(makeThumbCanvas(i));
+     let num=document.createElement('span');
+     num.className='num';num.textContent=String(i+1).padStart(2,'0');b.appendChild(num);
+     if(i===sel){
+       let badge=document.createElement('span');badge.className='badge';
+       badge.textContent=type==='main'?'Main':'Tab';b.appendChild(badge);
+     }
+     b.onclick=()=>{if(type==='main')mainIndex=i;else tabIndex=i;buildPicks()};
+     root.appendChild(b);
+   }
+ });
 }
-
+$$('input[name=tabmode]').forEach(r=>r.onchange=()=>$('#tabPick').classList.toggle('hidden',$('input[name=tabmode]:checked').value==='same'));
 
 function buildResultPreview(){
  const root=$('#resultPreview');root.innerHTML='';for(let i=0;i<rows*cols;i++)root.appendChild(makeThumbCanvas(i,185));
@@ -964,7 +939,7 @@ async function prepareOutputs(){
  $('#status').textContent='正在準備圖片…'; outputBlobs=[];outputFiles=[];
  for(let i=0;i<rows*cols;i++){let b=await makeStickerBlob(i);outputBlobs.push({name:String(i+1).padStart(2,'0')+'.png',blob:b})}
  let mb=await resizeStickerToCanvas(mainIndex,240,240); outputBlobs.push({name:'main.png',blob:mb});
- let ti=tabIndex;
+ let ti=$('input[name=tabmode]:checked').value==='same'?mainIndex:tabIndex;
  let tb=await resizeStickerToCanvas(ti,96,74); outputBlobs.push({name:'tab.png',blob:tb});
  outputFiles=outputBlobs.map(x=>new File([x.blob],x.name,{type:'image/png'}));
  $('#doneText').textContent=`共 ${outputFiles.length} 張 PNG（${rows*cols} 張貼圖 + Main + Tab）`;
