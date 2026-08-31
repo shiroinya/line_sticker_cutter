@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>LINE 貼圖裁切工具</title>
+<style>
+:root{
+  --bg:#f3f5f7;--card:#fff;--text:#20262e;--muted:#6d7783;--line:#dce2e7;
+  --green:#19c763;--green2:#12aa53;--soft:#ecfbf3;--warn:#fff6dc;--danger:#d94a5d;
+  --shadow:0 10px 28px rgba(27,39,51,.08);--r:20px
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC",Arial,sans-serif;color:var(--text)}
+button,input,select{font:inherit} button{cursor:pointer}
+.app{width:min(100%,560px);min-height:100vh;margin:auto;background:#fff;padding-bottom:92px}
+header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-bottom:1px solid #edf0f2;padding:13px 16px 11px}
+.top{display:flex;align-items:center;gap:10px}.brand{font-size:18px;font-weight:900;flex:1}
+.help{width:38px;height:38px;border:1px solid var(--line);background:white;border-radius:50%;font-weight:900;font-size:18px}
+.meta{display:flex;justify-content:space-between;margin-top:9px;color:var(--muted);font-size:13px}
+.progress{display:flex;gap:5px;margin-top:8px}.progress i{display:block;height:5px;flex:1;background:#e7eaed;border-radius:9px}.progress i.on{background:var(--green)}
+.page{display:none;padding:20px 16px 30px}.page.active{display:block}
+h1{font-size:27px;line-height:1.25;margin:2px 0 9px}h2{font-size:19px;margin:0 0 8px}p{color:var(--muted);line-height:1.55;margin:0 0 14px}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:15px;background:white;box-shadow:var(--shadow);margin:14px 0}
+.btn{border:0;border-radius:14px;min-height:50px;padding:12px 16px;font-weight:900}
+.primary{background:var(--green);color:#fff}.primary:hover{background:var(--green2)}
+.secondary{background:#fff;border:1px solid var(--line);color:var(--text)}.ghost{background:#f1f4f6;color:#3d4650}
+.small{min-height:38px;padding:8px 12px;font-size:14px}.full{width:100%}.hidden{display:none!important}
+
+/* step1 */
+.upload{border:2px dashed #cbd4dc;border-radius:23px;padding:25px 16px;text-align:center;background:#fafcfd}
+.upload .emoji{font-size:48px}.file-input{display:none}
+.selected-preview{margin-top:15px;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#eef2f4}
+.selected-preview img{display:block;width:100%;max-height:390px;object-fit:contain;background:linear-gradient(45deg,#edf0f2 25%,transparent 25%),linear-gradient(-45deg,#edf0f2 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#edf0f2 75%),linear-gradient(-45deg,transparent 75%,#edf0f2 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
+.fileinfo{font-size:13px;color:var(--muted);padding:9px 12px}
+
+/* step2 */
+.presets{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.preset{border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px;text-align:left;font-weight:800}
+.preset.on{border:2px solid var(--green);background:var(--soft)}
+.gridicon{height:64px;display:grid;gap:3px;margin-bottom:8px}.gridicon span{background:#dde4e9;border-radius:3px}
+.custom{display:grid;grid-template-columns:1fr 38px 1fr;align-items:end;gap:8px}.custom label{font-size:13px;color:var(--muted)}
+.custom select{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 10px;font-weight:800}.times{text-align:center;padding-bottom:12px;font-weight:900}
+.crop-preview{position:relative;overflow:hidden;border-radius:18px;background:#e8edef;border:1px solid var(--line)}
+.crop-preview img{display:block;width:100%;height:auto}
+.overlay{position:absolute;inset:0;display:grid;pointer-events:none}
+.overlay .c{border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 0 0 1px rgba(0,0,0,.13)}
+.ctrl{display:grid;grid-template-columns:82px 1fr 52px;gap:9px;align-items:center;margin-top:13px;font-size:14px}.ctrl input{width:100%}.ctrl output{text-align:right;color:var(--muted)}
+.note{font-size:13px;background:var(--warn);padding:11px 12px;border-radius:13px;line-height:1.5}
+
+/* step3 */
+.editor{position:relative;aspect-ratio:370/320;background:
+linear-gradient(45deg,#e7ebee 25%,transparent 25%),linear-gradient(-45deg,#e7ebee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e7ebee 75%),linear-gradient(-45deg,transparent 75%,#e7ebee 75%);
+background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;border:1px solid var(--line);border-radius:18px;overflow:hidden;touch-action:none}
+.editor canvas{width:100%;height:100%;display:block}
+.tools{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.tools .btn{min-height:40px;padding:8px 11px}
+.zoomrow{display:grid;grid-template-columns:55px 1fr 48px;align-items:center;gap:8px;margin-top:10px}
+.thumbs,.pickgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.thumb,.pick{padding:0;border:2px solid transparent;border-radius:12px;overflow:hidden;aspect-ratio:1;background:#e9eef1;position:relative}
+.thumb.on,.pick.on{border-color:var(--green)}.thumb canvas,.pick canvas{width:100%;height:100%;display:block}
+.num,.badge{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.62);color:white;border-radius:99px;font-size:10px;padding:3px 6px}.badge{left:auto;right:4px;top:4px;bottom:auto;background:var(--green);font-weight:900}
+.hintchips{margin-top:8px}.chip{display:inline-block;background:#f1f4f6;color:#59636d;border-radius:99px;padding:7px 10px;font-size:12px;margin:4px 4px 0 0}
+
+/* step4/5/6 */
+.radio{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #edf0f2}.radio:last-child{border-bottom:0}
+.checks{display:grid;gap:10px}.check{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:12px}.ok{width:28px;height:28px;border-radius:50%;background:var(--soft);color:var(--green2);display:grid;place-items:center;font-weight:900}
+.resultgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.resultgrid canvas{width:100%;aspect-ratio:370/320;border:1px solid var(--line);border-radius:10px;background:#eef2f4}
+.success{text-align:center;padding:20px 6px}.success .e{font-size:60px}.actions{display:grid;gap:10px}
+.status{font-size:13px;color:var(--muted);text-align:center;min-height:20px;margin-top:8px}
+
+/* footer/help */
+footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,560px);z-index:35;display:flex;gap:9px;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-top:1px solid #e8ecef}footer .btn{flex:1}footer .next{flex:1.5}
+.modal{position:fixed;inset:0;z-index:80;background:rgba(18,24,31,.45);display:none;align-items:flex-end;justify-content:center}.modal.show{display:flex}.sheet{width:min(100%,560px);background:#fff;border-radius:24px 24px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));max-height:72vh;overflow:auto}.sheettop{display:flex;align-items:center}.sheettop h3{flex:1;margin:0}.close{border:0;background:#f0f3f5;width:36px;height:36px;border-radius:50%;font-size:18px}.tips{color:#4c5661;line-height:1.7;padding-left:21px}
+
+
+/* Step 2 redesigned */
+.step2-page{display:none}
+.step2-page.active{display:flex;flex-direction:column}
+.step2-preview-zone{display:flex;flex-direction:column;gap:8px}
+.crop-summary{align-self:center;background:#f2f5f7;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:800;color:#4d5965}
+.step2-panel{margin-top:12px;border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden;box-shadow:var(--shadow)}
+.step2-tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #edf0f2}
+.step2-tab{border:0;background:#fff;padding:11px 8px;font-weight:800;color:var(--muted)}
+.step2-tab.on{color:var(--green2);background:var(--soft)}
+.step2-panelbody{display:none;padding:11px}
+.step2-panelbody.on{display:block}
+.preset-scroll{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.preset-scroll::-webkit-scrollbar{display:none}
+.preset-scroll .preset{min-width:82px;flex:0 0 auto;text-align:center;padding:8px}
+.preset-scroll .gridicon{height:38px;margin-bottom:5px}
+.compact-custom{margin-top:10px}
+.big-control{padding:6px 2px 3px}
+.big-control-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.big-control-top strong{font-size:22px;color:var(--green2)}
+.big-control input{width:100%}
+.control-hint{margin-top:8px;color:var(--muted);font-size:13px}
+
+/* cheerful completion */
+.celebrate-card{
+  position:relative;overflow:hidden;text-align:center;
+  border-radius:26px;padding:26px 18px 22px;
+  background:linear-gradient(180deg,#edfff5,#ffffff);
+  border:1px solid #c9f2da;box-shadow:0 14px 34px rgba(25,199,99,.14);
+  margin-bottom:16px
+}
+.confetti{font-size:22px;letter-spacing:5px;white-space:nowrap;animation:floaty 1.8s ease-in-out infinite alternate}
+.celebrate-icon{font-size:64px;margin:4px 0}
+.celebrate-card h1{font-size:31px;margin-bottom:6px}
+.big-share{min-height:58px;font-size:17px}
+.save-result{
+  margin-top:14px;border-radius:18px;padding:15px;
+  background:#eafff2;border:2px solid #8be2ae;
+  display:flex;gap:12px;align-items:center;
+  box-shadow:0 8px 24px rgba(25,199,99,.14)
+}
+.save-result-icon{font-size:34px}
+.save-result b{font-size:18px;display:block;margin-bottom:4px;color:#0d8f46}
+.save-result div div{font-size:14px;line-height:1.45;color:#44515d}
+@keyframes floaty{from{transform:translateY(0)}to{transform:translateY(-5px)}}
+
+/* Small-phone optimization */
+@media(max-width:430px){
+  .app{padding-bottom:78px}
+  header{padding:10px 12px 9px}
+  .brand{font-size:16px}
+  .help{width:34px;height:34px}
+  .page{padding:14px 12px 22px}
+  h1{font-size:23px}
+  p{font-size:14px}
+
+  /* Step 2: compact controls, less vertical travel */
+  .page:nth-of-type(2) .presets{
+    display:flex;
+    overflow-x:auto;
+    gap:8px;
+    padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .page:nth-of-type(2) .presets::-webkit-scrollbar{display:none}
+  .page:nth-of-type(2) .preset{
+    min-width:92px;
+    padding:9px;
+    flex:0 0 auto;
+  }
+  .page:nth-of-type(2) .gridicon{height:42px}
+  .page:nth-of-type(2) .card{margin:10px 0;padding:11px}
+  .page:nth-of-type(2) .crop-preview{
+    max-height:42vh;
+  }
+  .page:nth-of-type(2) .crop-preview img{
+    max-height:42vh;
+    object-fit:contain;
+    margin:auto;
+  }
+  .page:nth-of-type(2) .ctrl{
+    grid-template-columns:72px 1fr 44px;
+    margin-top:9px;
+    font-size:13px;
+  }
+
+  /* Step 3: no whole-page scrolling needed */
+  .page:nth-of-type(3){
+    height:calc(100dvh - 118px);
+    min-height:560px;
+    padding:10px 10px 8px;
+    overflow:hidden;
+    display:none;
+  }
+  .page:nth-of-type(3).active{
+    display:grid;
+    grid-template-columns:62px minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr) auto;
+    gap:8px 9px;
+  }
+  .page:nth-of-type(3) h1,
+  .page:nth-of-type(3) > p{
+    grid-column:1 / -1;
+  }
+  .page:nth-of-type(3) h1{margin:0 0 2px;font-size:20px}
+  .page:nth-of-type(3) > p{
+    margin:0 0 2px;
+    font-size:12px;
+    line-height:1.35;
+  }
+
+  .page:nth-of-type(3) .editor{
+    grid-column:2;
+    grid-row:2;
+    width:100%;
+    height:100%;
+    min-height:0;
+    aspect-ratio:auto;
+    align-self:stretch;
+  }
+
+  .page:nth-of-type(3) .thumbs{
+    grid-column:1;
+    grid-row:2;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    margin:0;
+    padding-right:2px;
+    min-height:0;
+    scrollbar-width:thin;
+  }
+  .page:nth-of-type(3) .thumb{
+    width:54px;
+    height:54px;
+    min-height:54px;
+    aspect-ratio:1;
+    flex:0 0 auto;
+  }
+
+  .page:nth-of-type(3) .hintchips{
+    display:none;
+  }
+
+  .page:nth-of-type(3) .zoomrow,
+  .page:nth-of-type(3) .tools{
+    grid-column:1 / -1;
+  }
+  .page:nth-of-type(3) .zoomrow{
+    grid-row:3;
+    grid-template-columns:45px 1fr 42px;
+    margin:0;
+    font-size:12px;
+  }
+  .page:nth-of-type(3) .tools{
+    grid-row:4;
+    display:flex;
+    justify-content:flex-end;
+    margin:0;
+    gap:6px;
+  }
+  .page:nth-of-type(3) .tools .btn{
+    min-height:34px;
+    padding:6px 9px;
+    font-size:12px;
+  }
+
+  footer{
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+  footer .btn{
+    min-height:44px;
+  }
+}
+
+
+@media(max-width:430px){
+  /* Step 2: one-screen control pattern */
+  .step2-page.active{
+    height:calc(100dvh - 118px);
+    min-height:540px;
+    overflow:hidden;
+    padding:10px 10px 8px;
+  }
+  .step2-head h1{font-size:20px;margin-bottom:3px}
+  .step2-head p{font-size:12px;line-height:1.3;margin-bottom:7px}
+  .step2-preview-zone{
+    flex:1;
+    min-height:0;
+    justify-content:center;
+  }
+  .step2-preview-zone .crop-preview{
+    max-height:none;
+    height:auto;
+    width:100%;
+    aspect-ratio:auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#eef2f4;
+  }
+  .step2-preview-zone .crop-preview img{
+    display:block;
+    width:auto;
+    height:auto;
+    max-width:100%;
+    max-height:34vh;
+    object-fit:contain;
+    margin:auto;
+  }
+  .step2-panel{
+    flex:0 0 auto;
+    margin-top:8px;
+  }
+  .step2-panelbody{padding:8px}
+  .step2-tabs .step2-tab{padding:9px 6px}
+  .compact-custom select{height:40px}
+  .compact-custom .times{padding-bottom:9px}
+
+  /* Step 3: preserve exact 370:320 shape */
+  .page:nth-of-type(3).active{
+    height:calc(100dvh - 118px);
+    min-height:540px;
+    grid-template-columns:58px minmax(0,1fr);
+    grid-template-rows:auto auto auto;
+    align-content:start;
+    overflow:hidden;
+  }
+  .page:nth-of-type(3) .editor{
+    grid-column:2;
+    grid-row:2;
+    width:100%;
+    height:auto !important;
+    aspect-ratio:370 / 320 !important;
+    min-height:0;
+    max-height:none;
+    align-self:center;
+  }
+  .page:nth-of-type(3) .thumbs{
+    grid-column:1;
+    grid-row:2;
+    height:min(42vh,320px);
+    align-self:center;
+  }
+  .page:nth-of-type(3) .zoomrow{
+    grid-column:1 / -1;
+    grid-row:3;
+    margin-top:4px;
+  }
+  .page:nth-of-type(3) .tools{
+    display:none;
+  }
+}
+
+@media(min-width:700px){body{padding:24px 0}.app{min-height:calc(100vh - 48px);border-radius:26px;overflow:hidden;box-shadow:0 20px 65px rgba(20,30,40,.13)}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="top"><div class="brand">LINE 貼圖裁切工具</div><button class="help" id="helpBtn">?</button></div>
+  <div class="meta"><span id="stepName"></span><span id="stepCount"></span></div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="page active">
+  <h1>選擇貼圖大圖</h1>
+  <p>選完後會直接顯示原圖，確認沒有選錯再繼續。</p>
+  <div class="upload">
+    <div class="emoji">🖼️</div>
+    <h2>從手機選擇圖片</h2>
+    <p>支援 PNG、JPG、WebP</p>
+    <input class="file-input" id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/*">
+    <button class="btn primary" id="chooseBtn">選擇圖片</button>
+    <div id="chosenBlock" class="selected-preview hidden">
+      <img id="chosenImg" alt="已選圖片">
+      <div class="fileinfo" id="fileInfo"></div>
+    </div>
+  </div>
+</section>
+
+<section class="page step2-page">
+  <div class="step2-head">
+    <div>
+      <h1>設定裁切方式</h1>
+      <p>預覽固定在上方，設定集中在下方，不用再上下來回確認。</p>
+    </div>
+  </div>
+
+  <div class="step2-preview-zone">
+    <div class="crop-preview" id="cropPreview">
+      <img id="cropImg">
+      <div class="overlay" id="overlay"></div>
+    </div>
+    <div class="crop-summary" id="cropSummary">3 × 3 · 共 9 張</div>
+  </div>
+
+  <div class="step2-panel">
+    <div class="step2-tabs">
+      <button class="step2-tab on" data-panel="layoutPanel">排列</button>
+      <button class="step2-tab" data-panel="marginPanel">外框</button>
+      <button class="step2-tab" data-panel="gapPanel">間距</button>
+    </div>
+
+    <div class="step2-panelbody on" id="layoutPanel">
+      <div class="preset-scroll">
+        <button class="preset" data-r="2" data-c="2"><div class="gridicon"></div><span>2 × 2</span></button>
+        <button class="preset on" data-r="3" data-c="3"><div class="gridicon"></div><span>3 × 3</span></button>
+        <button class="preset" data-r="2" data-c="4"><div class="gridicon"></div><span>4 × 2</span></button>
+        <button class="preset" data-r="3" data-c="4"><div class="gridicon"></div><span>4 × 3</span></button>
+      </div>
+
+      <div class="custom compact-custom">
+        <label>橫向
+          <select id="colsSel"></select>
+        </label>
+        <div class="times">×</div>
+        <label>直向
+          <select id="rowsSel"></select>
+        </label>
+      </div>
+    </div>
+
+    <div class="step2-panelbody" id="marginPanel">
+      <div class="big-control">
+        <div class="big-control-top"><b>外框邊距</b><strong id="marginOut">0%</strong></div>
+        <input id="margin" type="range" min="0" max="15" step=".5" value="0">
+        <div class="control-hint">調整整張大圖四周要略過的留白。</div>
+      </div>
+    </div>
+
+    <div class="step2-panelbody" id="gapPanel">
+      <div class="big-control">
+        <div class="big-control-top"><b>格子間距</b><strong id="gapOut">0%</strong></div>
+        <input id="gap" type="range" min="0" max="10" step=".5" value="0">
+        <div class="control-hint">如果每格中間有留白，可在這裡扣掉。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page">
+  <h1>逐張調整</h1>
+  <p>點左側縮圖切換貼圖，不必上下滑整頁。拖曳可移動內容，雙指或滑桿可縮放；每張會各自記住調整。</p>
+  <div class="editor" id="editor"><canvas id="editCanvas" width="740" height="640"></canvas></div>
+  <div class="hintchips"><span class="chip">👆 單指拖曳</span><span class="chip">🤏 雙指縮放</span><span class="chip">370 × 320 輸出框</span></div>
+  <div class="zoomrow"><span>縮放</span><input id="zoom" type="range" min="1" max="3" step=".01" value="1"><output id="zoomOut">100%</output></div>
+  <div class="tools">
+    <button class="btn secondary small" id="resetOne">重設這張</button>
+    <button class="btn ghost small" id="resetAll">全部重設</button>
+  </div>
+  <div class="thumbs" id="thumbs"></div>
+</section>
+
+<section class="page">
+  <h1>選 Main / Tab</h1>
+  <p>Main 會輸出為 240 × 240；Tab 會輸出為 96 × 74。</p>
+  <div class="card"><h2>Main 主圖</h2><div class="pickgrid" id="mainPick"></div></div>
+  <div class="card">
+    <h2>Tab 圖片</h2>
+    <label class="radio"><input type="radio" name="tabmode" value="same" checked>使用 Main 同一張</label>
+    <label class="radio"><input type="radio" name="tabmode" value="other">另外選一張</label>
+    <div id="tabPick" class="pickgrid hidden"></div>
+  </div>
+</section>
+
+<section class="page">
+  <h1>最後檢查</h1>
+  <p>所有圖片會在你的瀏覽器內產生，不會上傳到伺服器。</p>
+  <div class="checks">
+    <div class="check"><div class="ok">✓</div><div><b id="stickerCount"></b><div class="fileinfo">每張 370 × 320 PNG</div></div></div>
+    <div class="check"><div class="ok">✓</div><div><b>Main 已設定</b><div class="fileinfo">240 × 240 PNG</div></div></div>
+    <div class="check"><div class="ok">✓</div><div><b>Tab 已設定</b><div class="fileinfo">96 × 74 PNG</div></div></div>
+  </div>
+  <div class="card"><h2>輸出預覽</h2><div class="resultgrid" id="resultPreview"></div></div>
+</section>
+
+<section class="page">
+  <div class="celebrate-card" id="celebrateCard">
+    <div class="confetti" aria-hidden="true">🎉 ✨ 🎊 ✨ 🎉</div>
+    <div class="celebrate-icon">🥳</div>
+    <h1>完成啦！</h1>
+    <p id="doneText"></p>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary full big-share" id="shareAll">📤 分享全部圖片</button>
+    <button class="btn secondary full" id="zipDownload">📦 下載 ZIP</button>
+    <button class="btn ghost full" id="restart">重新製作</button>
+  </div>
+
+  <div class="save-result hidden" id="saveResult">
+    <div class="save-result-icon">✅</div>
+    <div>
+      <b id="saveResultTitle">分享流程完成！</b>
+      <div id="saveResultText"></div>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div class="card" id="platformTip"><b id="platformTipTitle">使用方式</b><p id="platformTipText" style="margin-top:7px"></p></div>
+</section>
+</main>
+
+<footer id="footer"><button class="btn secondary" id="prev">上一步</button><button class="btn primary next" id="next">下一步</button></footer>
+</div>
+
+<div class="modal" id="helpModal"><div class="sheet"><div class="sheettop"><h3>這一頁怎麼操作？</h3><button class="close" id="closeHelp">×</button></div><ul class="tips" id="tips"></ul><button class="btn primary full" id="gotit">知道了</button></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const pages=$$('.page');
+const help=[
+ ['按「選擇圖片」從相簿或檔案加入大圖。','選完後先確認預覽是否正確。','圖片只在本機瀏覽器中處理。'],
+ ['可直接點常見排列，或用自訂欄數、列數。','橫向欄數是左右有幾張；直向列數是上下有幾張。','外框邊距與格子間距會影響實際裁切區域。'],
+ ['小螢幕會把縮圖固定在左側，點一下即可切換，不必整頁上下滑。','單指拖曳調整位置；雙指可縮放，也可用縮放滑桿。','每張貼圖會獨立保存調整。'],
+ ['點一張貼圖作為 Main。','Tab 預設使用 Main 同一張，通常不需多做一步。','若 Tab 想換圖，再選「另外選一張」。'],
+ ['確認貼圖數量以及 Main / Tab。','預覽內容就是最後輸出的大致結果。','有問題可按上一步回去調整。'],
+ ['iPhone / iPad 會提示存到「照片」App；Android 會提示 Google 相簿、檔案或其他 App。','桌機以 ZIP 下載為主。','瀏覽器只能知道分享流程完成，無法讀取你實際選擇的儲存目的地。']
+];
+
+let step=0,img=new Image(),imgURL='',cols=3,rows=3,currentSticker=0,mainIndex=0,tabIndex=0;
+let transforms=[], outputBlobs=[], outputFiles=[];
+const ua=navigator.userAgent;
+const isiOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+const isAndroid = /Android/i.test(ua);
+const isMobile = isiOS || isAndroid || (/Mobile/i.test(ua) && innerWidth<900);
+
+for(let i=1;i<=5;i++){ $('#colsSel').add(new Option(i,i)); $('#rowsSel').add(new Option(i,i)); }
+$('#colsSel').value=3; $('#rowsSel').value=3;
+
+function initPresetIcons(){
+  $$('.preset').forEach(b=>{
+    const r=+b.dataset.r,c=+b.dataset.c,g=b.querySelector('.gridicon');
+    g.style.gridTemplateColumns=`repeat(${c},1fr)`;g.style.gridTemplateRows=`repeat(${r},1fr)`;
+    g.innerHTML='<span></span>'.repeat(r*c);
+  });
+}
+initPresetIcons();
+
+
+$$('.step2-tab').forEach(btn=>btn.onclick=()=>{
+  $$('.step2-tab').forEach(x=>x.classList.remove('on'));
+  $$('.step2-panelbody').forEach(x=>x.classList.remove('on'));
+  btn.classList.add('on');
+  $('#'+btn.dataset.panel).classList.add('on');
+});
+
+function showStep(n){
+  step=Math.max(0,Math.min(5,n));pages.forEach((p,i)=>p.classList.toggle('active',i===step));
+  $('#stepName').textContent=['1. 選圖片','2. 切幾張','3. 調整','4. 封面','5. 檢查','6. 完成'][step];
+  $('#stepCount').textContent=`Step ${step+1} / 6`;
+  $('#progress').innerHTML=[0,1,2,3,4,5].map(i=>`<i class="${i<=step?'on':''}"></i>`).join('');
+  $('#prev').style.visibility=step===0?'hidden':'visible'; $('#footer').style.display=step===5?'none':'flex';
+  $('#next').textContent=step===4?'產生圖片':'下一步';
+  if(step===2){ensureTransforms(); buildThumbs(); renderEditor();}
+  if(step===3) buildPicks();
+  if(step===4){buildResultPreview(); $('#stickerCount').textContent=`${rows*cols} 張貼圖已完成`;}
+  if(step===5) prepareOutputs();
+  scrollTo({top:0,behavior:'smooth'});
+}
+
+$('#chooseBtn').onclick=()=>$('#fileInput').click();
+$('#fileInput').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  if(imgURL)URL.revokeObjectURL(imgURL); imgURL=URL.createObjectURL(f);
+  img=new Image(); img.onload=()=>{
+    $('#chosenImg').src=imgURL;$('#cropImg').src=imgURL;$('#chosenBlock').classList.remove('hidden');
+    $('#fileInfo').textContent=`${f.name} · ${img.naturalWidth} × ${img.naturalHeight}`;
+    transforms=[]; updateOverlay();
+  }; img.src=imgURL;
+};
+
+function selectLayout(c,r){
+  cols=c;rows=r;$('#colsSel').value=c;$('#rowsSel').value=r;
+  $$('.preset').forEach(b=>b.classList.toggle('on',+b.dataset.c===c && +b.dataset.r===r));
+  transforms=[]; currentSticker=0; updateOverlay(); updateCropSummary();
+}
+$$('.preset').forEach(b=>b.onclick=()=>selectLayout(+b.dataset.c,+b.dataset.r));
+$('#colsSel').onchange=()=>selectLayout(+$ ('#colsSel').value,+$('#rowsSel').value);
+$('#rowsSel').onchange=()=>selectLayout(+$('#colsSel').value,+$('#rowsSel').value);
+
+function updateOverlay(){
+  const ov=$('#overlay');ov.style.gridTemplateColumns=`repeat(${cols},1fr)`;ov.style.gridTemplateRows=`repeat(${rows},1fr)`;
+  ov.innerHTML='<div class="c"></div>'.repeat(cols*rows);
+  const m=+$('#margin').value,g=+$('#gap').value;
+  ov.style.inset=m+'%';ov.style.gap=g+'%';
+  $('#marginOut').textContent=m+'%';$('#gapOut').textContent=g+'%';
+}
+function updateCropSummary(){
+  const el=$('#cropSummary');
+  if(el) el.textContent=`${cols} × ${rows} · 共 ${cols*rows} 張`;
+}
+$('#margin').oninput=()=>{transforms=[];updateOverlay()}; $('#gap').oninput=()=>{transforms=[];updateOverlay()};
+
+function sourceRect(index){
+  const m=+$('#margin').value/100, gp=+$('#gap').value/100;
+  const W=img.naturalWidth,H=img.naturalHeight;
+  const left=W*m,top=H*m,usableW=W*(1-2*m),usableH=H*(1-2*m);
+  const totalGapW=usableW*gp*(cols-1), totalGapH=usableH*gp*(rows-1);
+  const cw=(usableW-totalGapW)/cols,ch=(usableH-totalGapH)/rows;
+  const col=index%cols,row=Math.floor(index/cols);
+  return {x:left+col*(cw+usableW*gp),y:top+row*(ch+usableH*gp),w:cw,h:ch};
+}
+function ensureTransforms(){
+  const n=rows*cols;if(transforms.length!==n)transforms=Array.from({length:n},()=>({zoom:1,dx:0,dy:0}));
+}
+function drawSticker(ctx,index,w,h){
+  ensureTransforms();const r=sourceRect(index),t=transforms[index];
+  ctx.clearRect(0,0,w,h);
+  const base=Math.max(w/r.w,h/r.h),scale=base*t.zoom;
+  const dw=r.w*scale,dh=r.h*scale;
+  ctx.drawImage(img,r.x,r.y,r.w,r.h,(w-dw)/2+t.dx*(w/370),(h-dh)/2+t.dy*(h/320),dw,dh);
+}
+function renderEditor(){
+  if(!img.complete)return;const c=$('#editCanvas');drawSticker(c.getContext('2d'),currentSticker,c.width,c.height);
+  $('#zoom').value=transforms[currentSticker]?.zoom||1;$('#zoomOut').textContent=Math.round($('#zoom').value*100)+'%';
+}
+function makeThumbCanvas(index,size=180){
+  const c=document.createElement('canvas');c.width=size;c.height=Math.round(size*320/370);drawSticker(c.getContext('2d'),index,c.width,c.height);return c;
+}
+function buildThumbs(){
+  ensureTransforms();const root=$('#thumbs');root.innerHTML='';
+  for(let i=0;i<rows*cols;i++){let b=document.createElement('button');b.className='thumb '+(i===currentSticker?'on':'');b.appendChild(makeThumbCanvas(i));let s=document.createElement('span');s.className='num';s.textContent=String(i+1).padStart(2,'0');b.appendChild(s);b.onclick=()=>{currentSticker=i;buildThumbs();renderEditor()};root.appendChild(b)}
+}
+$('#zoom').oninput=e=>{ensureTransforms();transforms[currentSticker].zoom=+e.target.value;$('#zoomOut').textContent=Math.round(e.target.value*100)+'%';renderEditor()};
+$('#resetOne').onclick=()=>{transforms[currentSticker]={zoom:1,dx:0,dy:0};buildThumbs();renderEditor()};
+$('#resetAll').onclick=()=>{transforms=[];ensureTransforms();buildThumbs();renderEditor()};
+
+let pointerMap=new Map(),lastDist=0,lastCenter=null;
+const editor=$('#editor');
+editor.addEventListener('pointerdown',e=>{pointerMap.set(e.pointerId,{x:e.clientX,y:e.clientY});editor.setPointerCapture(e.pointerId)});
+editor.addEventListener('pointermove',e=>{
+ if(!pointerMap.has(e.pointerId))return;
+ const old=pointerMap.get(e.pointerId);pointerMap.set(e.pointerId,{x:e.clientX,y:e.clientY});ensureTransforms();let t=transforms[currentSticker];
+ if(pointerMap.size===1){t.dx+=e.clientX-old.x;t.dy+=e.clientY-old.y;renderEditor();}
+ else if(pointerMap.size===2){
+   const pts=[...pointerMap.values()],dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+   if(lastDist){t.zoom=Math.max(1,Math.min(3,t.zoom*(dist/lastDist)));$('#zoom').value=t.zoom;$('#zoomOut').textContent=Math.round(t.zoom*100)+'%';renderEditor();}
+   lastDist=dist;
+ }
+});
+function pointerEnd(e){pointerMap.delete(e.pointerId);lastDist=0;if(pointerMap.size===0)buildThumbs()}
+editor.addEventListener('pointerup',pointerEnd);editor.addEventListener('pointercancel',pointerEnd);
+
+function buildPicks(){
+ const roots=[['mainPick','main'],['tabPick','tab']];
+ roots.forEach(([id,type])=>{const root=$('#'+id);root.innerHTML='';for(let i=0;i<rows*cols;i++){let b=document.createElement('button');let sel=type==='main'?mainIndex:tabIndex;b.className='pick '+(i===sel?'on':'');b.appendChild(makeThumbCanvas(i));if(i===sel){let badge=document.createElement('span');badge.className='badge';badge.textContent=type==='main'?'Main':'Tab';b.appendChild(badge)}b.onclick=()=>{if(type==='main')mainIndex=i;else tabIndex=i;buildPicks()};root.appendChild(b)}})
+}
+$$('input[name=tabmode]').forEach(r=>r.onchange=()=>$('#tabPick').classList.toggle('hidden',$('input[name=tabmode]:checked').value==='same'));
+
+function buildResultPreview(){
+ const root=$('#resultPreview');root.innerHTML='';for(let i=0;i<rows*cols;i++)root.appendChild(makeThumbCanvas(i,185));
+}
+function canvasBlob(canvas){return new Promise(res=>canvas.toBlob(res,'image/png'))}
+async function makeStickerBlob(i,w=370,h=320){
+ const c=document.createElement('canvas');c.width=w;c.height=h;drawSticker(c.getContext('2d'),i,w,h);return canvasBlob(c);
+}
+async function resizeStickerToCanvas(i,w,h){
+ const src=document.createElement('canvas');src.width=370;src.height=320;drawSticker(src.getContext('2d'),i,370,320);
+ const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');
+ const scale=Math.min(w/370,h/320),dw=370*scale,dh=320*scale;ctx.drawImage(src,(w-dw)/2,(h-dh)/2,dw,dh);return canvasBlob(c);
+}
+
+function applyPlatformUI(){
+  const share=$('#shareAll'), zip=$('#zipDownload');
+  const tipTitle=$('#platformTipTitle'), tipText=$('#platformTipText');
+
+  if(isiOS){
+    zip.classList.add('hidden');
+    share.classList.remove('hidden');
+    tipTitle.textContent='iPhone / iPad 使用方式';
+    tipText.textContent='按「分享全部圖片」後，在系統分享選單選「儲存圖片」，即可存到「照片」App。';
+  }else if(isAndroid){
+    zip.classList.add('hidden');
+    share.classList.remove('hidden');
+    tipTitle.textContent='Android 使用方式';
+    tipText.textContent='按「分享全部圖片」後，可選擇 Google 相簿、檔案、相簿 App 或其他支援的 App 儲存。';
+  }else{
+    zip.classList.remove('hidden');
+    tipTitle.textContent='桌機使用方式';
+    tipText.textContent='建議直接下載 ZIP，一次取得所有貼圖、Main 與 Tab。';
+  }
+}
+
+async function prepareOutputs(){
+ $('#status').textContent='正在準備圖片…'; outputBlobs=[];outputFiles=[];
+ for(let i=0;i<rows*cols;i++){let b=await makeStickerBlob(i);outputBlobs.push({name:String(i+1).padStart(2,'0')+'.png',blob:b})}
+ let mb=await resizeStickerToCanvas(mainIndex,240,240); outputBlobs.push({name:'main.png',blob:mb});
+ let ti=$('input[name=tabmode]:checked').value==='same'?mainIndex:tabIndex;
+ let tb=await resizeStickerToCanvas(ti,96,74); outputBlobs.push({name:'tab.png',blob:tb});
+ outputFiles=outputBlobs.map(x=>new File([x.blob],x.name,{type:'image/png'}));
+ $('#doneText').textContent=`共 ${outputFiles.length} 張 PNG（${rows*cols} 張貼圖 + Main + Tab）`;
+ applyPlatformUI();
+ if(!isMobile && !(navigator.canShare && navigator.canShare({files:outputFiles}))){
+   $('#shareAll').classList.add('hidden');
+ }
+ $('#status').textContent='';
+}
+$('#shareAll').onclick=async()=>{
+ try{
+   if(navigator.canShare && navigator.canShare({files:outputFiles})){
+     $('#status').textContent='已開啟系統分享選單…';
+     await navigator.share({files:outputFiles,title:'LINE 貼圖'});
+     $('#status').textContent='';
+     if(isiOS){
+       $('#saveResultTitle').textContent='🎉 分享完成！';
+       $('#saveResultText').textContent='如果你剛才選的是「儲存圖片」，貼圖應已經在「照片」App 裡了。';
+     }else if(isAndroid){
+       $('#saveResultTitle').textContent='🎉 分享完成！';
+       $('#saveResultText').textContent='如果你剛才選了 Google 相簿、檔案或相簿 App，圖片應已交給該 App 儲存。';
+     }else{
+       $('#saveResultTitle').textContent='🎉 分享完成！';
+       $('#saveResultText').textContent='檔案已交給你選擇的分享目的地。';
+     }
+     $('#saveResult').classList.remove('hidden');
+     $('#saveResult').scrollIntoView({behavior:'smooth',block:'center'});
+   }else{
+     $('#status').textContent='這個瀏覽器不支援一次分享多張檔案。';
+     alert('這個瀏覽器不支援一次分享多張檔案。建議使用 Safari / Chrome 最新版本。');
+   }
+ }catch(e){
+   if(e.name==='AbortError'){
+     $('#status').textContent='已取消分享，檔案尚未透過系統分享出去。';
+   }else{
+     $('#status').textContent='分享失敗：'+e.message;
+     alert('分享失敗：'+e.message);
+   }
+ }
+};
+$('#zipDownload').onclick=async()=>{
+ if(typeof JSZip==='undefined'){alert('ZIP 元件載入失敗，請確認網路連線。');return}
+ $('#status').textContent='正在建立 ZIP…';const zip=new JSZip();outputBlobs.forEach(x=>zip.file(x.name,x.blob));
+ const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='line_stickers.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);$('#status').textContent='ZIP 已下載';
+};
+$('#restart').onclick=()=>location.reload();
+
+$('#next').onclick=async()=>{
+ if(step===0&&!imgURL){alert('請先選擇圖片');return}
+ if(step===1){ensureTransforms()}
+ if(step===4) $('#next').disabled=true;
+ showStep(step+1);
+ $('#next').disabled=false;
+};
+$('#prev').onclick=()=>showStep(step-1);
+
+function openHelp(){$('#tips').innerHTML=help[step].map(x=>`<li>${x}</li>`).join('');$('#helpModal').classList.add('show')}
+function closeHelp(){$('#helpModal').classList.remove('show')}
+$('#helpBtn').onclick=openHelp;$('#closeHelp').onclick=closeHelp;$('#gotit').onclick=closeHelp;$('#helpModal').onclick=e=>{if(e.target===$('#helpModal'))closeHelp()};
+
+applyPlatformUI();
+updateOverlay();updateCropSummary();showStep(0);
+</script>
+</body>
+</html>
