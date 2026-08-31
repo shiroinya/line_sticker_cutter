@@ -458,7 +458,7 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
   <p>點左側縮圖切換貼圖，不必上下滑整頁。拖曳可移動內容，雙指或滑桿可縮放；每張會各自記住調整。</p>
   <div class="editor" id="editor"><canvas id="editCanvas" width="740" height="640"></canvas></div>
   <div class="hintchips"><span class="chip">👆 單指拖曳</span><span class="chip">🤏 雙指縮放</span><span class="chip">370 × 320 輸出框</span></div>
-  <div class="zoomrow"><span>縮放</span><input id="zoom" type="range" min="1" max="3" step=".01" value="1"><output id="zoomOut">100%</output></div>
+  <div class="zoomrow"><span>縮放</span><input id="zoom" type="range" min=".5" max="3" step=".01" value="1"><output id="zoomOut">100%</output></div>
   <div class="tools">
     <button class="btn secondary small" id="resetOne">重設這張</button>
     <button class="btn ghost small" id="resetAll">全部重設</button>
@@ -528,7 +528,7 @@ const pages=$$('.page');
 const help=[
  ['按「選擇圖片」從相簿或檔案加入大圖。','選完後先確認預覽是否正確。','圖片只在本機瀏覽器中處理。'],
  ['預覽會直接按照你上傳圖片的長寬比例顯示，不會塞進固定框。','可直接點常見排列，或用自訂欄數、列數。','裁切格線直接疊在圖片上；外框與間距就是實際裁切位置。'],
- ['小螢幕會把縮圖固定在左側，點一下即可切換，不必整頁上下滑。','單指拖曳調整位置；雙指可縮放，也可用縮放滑桿。','每張貼圖會獨立保存調整。'],
+ ['小螢幕會把縮圖固定在左側，點一下即可切換，不必整頁上下滑。','單指拖曳調整位置；雙指可縮放，也可用縮放滑桿，最小可縮到 50%。','每張貼圖會獨立保存調整。'],
  ['點一張貼圖作為 Main。','Tab 預設使用 Main 同一張，通常不需多做一步。','若 Tab 想換圖，再選「另外選一張」。'],
  ['確認貼圖數量以及 Main / Tab。','預覽內容就是最後輸出的大致結果。','有問題可按上一步回去調整。'],
  ['iPhone / iPad 會提示存到「照片」App；Android 會提示 Google 相簿、檔案或其他 App。','桌機以 ZIP 下載為主。','瀏覽器只能知道分享流程完成，無法讀取你實際選擇的儲存目的地。']
@@ -651,7 +651,7 @@ editor.addEventListener('pointermove',e=>{
  if(pointerMap.size===1){t.dx+=e.clientX-old.x;t.dy+=e.clientY-old.y;renderEditor();}
  else if(pointerMap.size===2){
    const pts=[...pointerMap.values()],dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
-   if(lastDist){t.zoom=Math.max(1,Math.min(3,t.zoom*(dist/lastDist)));$('#zoom').value=t.zoom;$('#zoomOut').textContent=Math.round(t.zoom*100)+'%';renderEditor();}
+   if(lastDist){t.zoom=Math.max(.5,Math.min(3,t.zoom*(dist/lastDist)));$('#zoom').value=t.zoom;$('#zoomOut').textContent=Math.round(t.zoom*100)+'%';renderEditor();}
    lastDist=dist;
  }
 });
