@@ -408,6 +408,57 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
   .page:nth-of-type(3) .zoomrow{grid-row:4}
 }
 
+
+/* v8: Step 2 uses visible solid crop lines + slider positioning */
+.step2-tabs{grid-template-columns:repeat(4,1fr)}
+.crop-stage .crop-preview{touch-action:auto}
+.crop-stage .overlay{
+  pointer-events:none;
+  border:1.5px solid rgba(11,93,59,.88);
+  cursor:default;
+  touch-action:auto;
+}
+.crop-stage .overlay .c{
+  border-right:1px solid rgba(11,93,59,.78);
+  border-bottom:1px solid rgba(11,93,59,.78);
+}
+.position-control + .position-control{
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid #edf0f2;
+}
+.position-labels{
+  display:flex;
+  justify-content:space-between;
+  margin-top:5px;
+  color:var(--muted);
+  font-size:11px;
+}
+
+/* v8: Step 3 and Step 4 previews always keep LINE sticker ratio 370:320 */
+.thumb,.pick{
+  aspect-ratio:370 / 320 !important;
+  height:auto !important;
+  min-height:0 !important;
+}
+.thumb canvas,.pick canvas{
+  width:100% !important;
+  height:auto !important;
+  aspect-ratio:370 / 320;
+  object-fit:contain;
+}
+@media(max-width:430px){
+  .page:nth-of-type(3) .thumb{
+    width:54px;
+    height:auto !important;
+    min-height:0 !important;
+    aspect-ratio:370 / 320 !important;
+  }
+  .page:nth-of-type(4) .pickgrid{
+    grid-template-columns:repeat(3,1fr);
+  }
+}
+
 </style>
 </head>
 <body>
@@ -450,7 +501,8 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
         <div class="overlay" id="overlay"></div>
       </div>
     </div>
-    <div class="crop-summary" id="cropSummary">3 × 3 · 共 9 張</div><div class="crop-move-hint">可直接拖曳深綠虛線裁切區移動位置</div>
+    <div class="crop-summary" id="cropSummary">3 × 3 · 共 9 張</div>
+    <div class="crop-move-hint">裁切框位置請用下方「位置」Bar 調整</div>
   </div>
 
   <div class="step2-panel">
@@ -458,6 +510,7 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
       <button class="step2-tab on" data-panel="layoutPanel">排列</button>
       <button class="step2-tab" data-panel="marginPanel">外框</button>
       <button class="step2-tab" data-panel="gapPanel">間距</button>
+      <button class="step2-tab" data-panel="positionPanel">位置</button>
     </div>
 
     <div class="step2-panelbody on" id="layoutPanel">
@@ -494,6 +547,20 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
         <div class="control-hint">如果每格中間有留白，可在這裡扣掉。</div>
       </div>
     </div>
+    <div class="step2-panelbody" id="positionPanel">
+      <div class="big-control position-control">
+        <div class="big-control-top"><b>左右位置</b><strong id="posXOut">置中</strong></div>
+        <input id="posX" type="range" min="-100" max="100" step="1" value="0">
+        <div class="position-labels"><span>← 左</span><span>中間</span><span>右 →</span></div>
+      </div>
+      <div class="big-control position-control">
+        <div class="big-control-top"><b>上下位置</b><strong id="posYOut">置中</strong></div>
+        <input id="posY" type="range" min="-100" max="100" step="1" value="0">
+        <div class="position-labels"><span>↑ 上</span><span>中間</span><span>下 ↓</span></div>
+      </div>
+      <div class="control-hint">先用「外框」縮小裁切範圍，再用這兩條 Bar 整體移動所有裁切格。</div>
+    </div>
+
   </div>
 </section>
 
@@ -567,14 +634,14 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-let cropOffsetX=0,cropOffsetY=0;
+let cropOffsetX=0,cropOffsetY=0,cropPosX=0,cropPosY=0;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const pages=$$('.page');
 const help=[
  ['按「選擇圖片」從相簿或檔案加入大圖。','選完後先確認預覽是否正確。','圖片只在本機瀏覽器中處理。'],
- ['預覽會按照原圖比例顯示；深綠虛線就是實際裁切區。','除了外框與間距，也可以直接拖曳整個裁切區改位置。','可直接點常見排列，或用自訂欄數、列數。'],
+ ['預覽會按照原圖比例顯示，裁切線改為較清楚的深綠實線。','要移動全部裁切格，請切到「位置」，用左右 / 上下兩條 Bar 調整，不必在小螢幕上拖框。','先縮小外框後，可移動的範圍會更大。'],
  ['小螢幕會把縮圖固定在左側，點一下即可切換。','勾選「一併調整全部圖片」後，縮放會同步套用全部貼圖。','未勾選時，每張貼圖仍各自保存縮放與位置；最小可縮到 50%。'],
- ['點一張貼圖作為 Main。','Tab 預設使用 Main 同一張，通常不需多做一步。','若 Tab 想換圖，再選「另外選一張」。'],
+ ['這裡直接使用 Step 3 已完成的 370:320 貼圖比例，不會再把圖片擠成方形。','點一張貼圖作為 Main；Tab 預設使用 Main 同一張。','若 Tab 想換圖，再選「另外選一張」。'],
  ['確認貼圖數量以及 Main / Tab。','預覽內容就是最後輸出的大致結果。','有問題可按上一步回去調整。'],
  ['iPhone / iPad 會提示存到「照片」App；Android 會提示 Google 相簿、檔案或其他 App。','桌機以 ZIP 下載為主。','瀏覽器只能知道分享流程完成，無法讀取你實際選擇的儲存目的地。']
 ];
@@ -607,25 +674,6 @@ $$('.step2-tab').forEach(btn=>btn.onclick=()=>{
 });
 
 
-(function initCropDrag(){
-  const ov=$('#overlay');
-  let dragging=false,startX=0,startY=0,startOX=0,startOY=0;
-  ov.addEventListener('pointerdown',e=>{
-    dragging=true; startX=e.clientX; startY=e.clientY; startOX=cropOffsetX; startOY=cropOffsetY;
-    ov.classList.add('dragging'); ov.setPointerCapture(e.pointerId); e.preventDefault();
-  });
-  ov.addEventListener('pointermove',e=>{
-    if(!dragging)return;
-    const img=$('#cropImg'), m=+$('#margin').value/100;
-    const maxX=img.clientWidth*m, maxY=img.clientHeight*m;
-    cropOffsetX=Math.max(-maxX,Math.min(maxX,startOX+(e.clientX-startX)));
-    cropOffsetY=Math.max(-maxY,Math.min(maxY,startOY+(e.clientY-startY)));
-    updateOverlay();
-  });
-  const end=e=>{dragging=false;ov.classList.remove('dragging')};
-  ov.addEventListener('pointerup',end);
-  ov.addEventListener('pointercancel',end);
-})();
 
 function showStep(n){
   step=Math.max(0,Math.min(5,n));pages.forEach((p,i)=>p.classList.toggle('active',i===step));
@@ -655,7 +703,10 @@ $('#fileInput').onchange=e=>{
 function selectLayout(c,r){
   cols=c;rows=r;$('#colsSel').value=c;$('#rowsSel').value=r;
   $$('.preset').forEach(b=>b.classList.toggle('on',+b.dataset.c===c && +b.dataset.r===r));
-  transforms=[]; currentSticker=0; cropOffsetX=0; cropOffsetY=0; updateOverlay(); updateCropSummary();
+  transforms=[]; currentSticker=0; cropOffsetX=0; cropOffsetY=0; cropPosX=0; cropPosY=0;
+  if($('#posX')) $('#posX').value=0;
+  if($('#posY')) $('#posY').value=0;
+  updateOverlay(); updateCropSummary();
 }
 $$('.preset').forEach(b=>b.onclick=()=>selectLayout(+b.dataset.c,+b.dataset.r));
 $('#colsSel').onchange=()=>selectLayout(+$ ('#colsSel').value,+$('#rowsSel').value);
@@ -668,24 +719,37 @@ function updateOverlay(){
   ov.style.gridTemplateRows=`repeat(${rows},1fr)`;
   ov.innerHTML='<div class="c"></div>'.repeat(cols*rows);
   const m=+$('#margin').value,g=+$('#gap').value;
+  const preview=$('#cropImg');
+  cropOffsetX=(preview.clientWidth*m/100)*(cropPosX/100);
+  cropOffsetY=(preview.clientHeight*m/100)*(cropPosY/100);
   ov.style.inset=m+'%';
   ov.style.gap=g+'%';
   ov.style.transform=`translate(${cropOffsetX}px,${cropOffsetY}px)`;
-  $('#marginOut').textContent=m+'%';$('#gapOut').textContent=g+'%';
+  $('#marginOut').textContent=m+'%';
+  $('#gapOut').textContent=g+'%';
+  if($('#posXOut')) $('#posXOut').textContent=positionText(cropPosX,'x');
+  if($('#posYOut')) $('#posYOut').textContent=positionText(cropPosY,'y');
+}
+function positionText(v,axis){
+  v=+v;
+  if(Math.abs(v)<3)return '置中';
+  const amount=Math.abs(v)+'%';
+  if(axis==='x')return (v<0?'左 ':'右 ')+amount;
+  return (v<0?'上 ':'下 ')+amount;
 }
 function updateCropSummary(){
   const el=$('#cropSummary');
   if(el) el.textContent=`${cols} × ${rows} · 共 ${cols*rows} 張`;
 }
-$('#margin').oninput=()=>{transforms=[];updateOverlay()}; $('#gap').oninput=()=>{transforms=[];updateOverlay()};
+$('#margin').oninput=()=>{transforms=[];updateOverlay()};
+$('#gap').oninput=()=>{transforms=[];updateOverlay()};
+$('#posX').oninput=e=>{cropPosX=+e.target.value;transforms=[];updateOverlay()};
+$('#posY').oninput=e=>{cropPosY=+e.target.value;transforms=[];updateOverlay()};
 
 function sourceRect(index){
   const m=+$('#margin').value/100, gp=+$('#gap').value/100;
   const W=img.naturalWidth,H=img.naturalHeight;
-  const preview=$('#cropImg');
-  const sx=preview.clientWidth ? W/preview.clientWidth : 1;
-  const sy=preview.clientHeight ? H/preview.clientHeight : 1;
-  const offsetX=cropOffsetX*sx, offsetY=cropOffsetY*sy;
+  const offsetX=W*m*(cropPosX/100), offsetY=H*m*(cropPosY/100);
   const left=W*m+offsetX,top=H*m+offsetY,usableW=W*(1-2*m),usableH=H*(1-2*m);
   const totalGapW=usableW*gp*(cols-1), totalGapH=usableH*gp*(rows-1);
   const cw=(usableW-totalGapW)/cols,ch=(usableH-totalGapH)/rows;
