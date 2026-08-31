@@ -74,6 +74,21 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
 .modal{position:fixed;inset:0;z-index:80;background:rgba(18,24,31,.45);display:none;align-items:flex-end;justify-content:center}.modal.show{display:flex}.sheet{width:min(100%,560px);background:#fff;border-radius:24px 24px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));max-height:72vh;overflow:auto}.sheettop{display:flex;align-items:center}.sheettop h3{flex:1;margin:0}.close{border:0;background:#f0f3f5;width:36px;height:36px;border-radius:50%;font-size:18px}.tips{color:#4c5661;line-height:1.7;padding-left:21px}
 
 
+
+/* Step 2: preview canvas follows the uploaded image's real aspect ratio */
+.crop-stage{
+  width:100%;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+.crop-stage .crop-preview{
+  position:relative;display:inline-block;width:auto;height:auto;max-width:100%;
+  overflow:hidden;border-radius:14px;background:transparent;border:0;line-height:0;
+  box-shadow:0 5px 18px rgba(20,30,40,.10);
+}
+.crop-stage .crop-preview img{
+  display:block;width:auto;height:auto;max-width:100%;max-height:46vh;object-fit:contain;
+}
+.crop-stage .overlay{position:absolute;inset:0}
+
 /* Step 2 redesigned */
 .step2-page{display:none}
 .step2-page.active{display:flex;flex-direction:column}
@@ -330,6 +345,25 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
 }
 
 @media(min-width:700px){body{padding:24px 0}.app{min-height:calc(100vh - 48px);border-radius:26px;overflow:hidden;box-shadow:0 20px 65px rgba(20,30,40,.13)}}
+
+@media(max-width:430px){
+  .step2-preview-zone .crop-stage{
+    flex:1;min-height:0;max-height:36vh;
+  }
+  .step2-preview-zone .crop-stage .crop-preview{
+    display:inline-block!important;
+    width:auto!important;height:auto!important;
+    max-width:100%!important;max-height:36vh!important;
+    aspect-ratio:auto!important;background:transparent!important;
+  }
+  .step2-preview-zone .crop-stage .crop-preview img{
+    display:block!important;
+    width:auto!important;height:auto!important;
+    max-width:100%!important;max-height:36vh!important;
+    object-fit:contain!important;margin:0!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -366,9 +400,11 @@ footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100
   </div>
 
   <div class="step2-preview-zone">
-    <div class="crop-preview" id="cropPreview">
-      <img id="cropImg">
-      <div class="overlay" id="overlay"></div>
+    <div class="crop-stage">
+      <div class="crop-preview" id="cropPreview">
+        <img id="cropImg" alt="裁切預覽">
+        <div class="overlay" id="overlay"></div>
+      </div>
     </div>
     <div class="crop-summary" id="cropSummary">3 × 3 · 共 9 張</div>
   </div>
@@ -491,7 +527,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const pages=$$('.page');
 const help=[
  ['按「選擇圖片」從相簿或檔案加入大圖。','選完後先確認預覽是否正確。','圖片只在本機瀏覽器中處理。'],
- ['可直接點常見排列，或用自訂欄數、列數。','橫向欄數是左右有幾張；直向列數是上下有幾張。','外框邊距與格子間距會影響實際裁切區域。'],
+ ['預覽會直接按照你上傳圖片的長寬比例顯示，不會塞進固定框。','可直接點常見排列，或用自訂欄數、列數。','裁切格線直接疊在圖片上；外框與間距就是實際裁切位置。'],
  ['小螢幕會把縮圖固定在左側，點一下即可切換，不必整頁上下滑。','單指拖曳調整位置；雙指可縮放，也可用縮放滑桿。','每張貼圖會獨立保存調整。'],
  ['點一張貼圖作為 Main。','Tab 預設使用 Main 同一張，通常不需多做一步。','若 Tab 想換圖，再選「另外選一張」。'],
  ['確認貼圖數量以及 Main / Tab。','預覽內容就是最後輸出的大致結果。','有問題可按上一步回去調整。'],
